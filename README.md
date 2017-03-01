@@ -1,4 +1,4 @@
-# dup: local Docker web development
+# dup: local Docker web development [![Build Status](https://travis-ci.org/girvo/dup.svg?branch=master)](https://travis-ci.org/girvo/dup)
 
 ```
 Declaratively define and run stateful Docker containers for web development.
@@ -7,68 +7,50 @@ Usage:
   dup up                   Starts the containers
   dup down                 Stops and removes the containers
   dup init                 Initialises the "-data" container
-  dup status               Not yet implemented
+  dup status               Checks status of the "-web" and "-db" containers
   dup build [--no-cache]   Builds the web container's image
+  dup bash [web | db]      Accesses /bin/bash in specified container
+  dup logs [web | db]      Follows logs for specified container
+  dup sql                  Accesses SQL/Mongo prompt for "-db" container
   dup (-h | --help)        Prints this help message
   dup --version            Prints the installed version
 ```
 
 `dup` is a tiny wrapper over Docker that loads a declarative JSON file for a given project to manage containers (especially stateful database containers) in a sane way. It was created due to frustration with [docker-compose](https://docs.docker.com/compose/) and it's issues with volume-only containers: a prerequisite for easy local web development. Three containers are created, prefixed with your declared project name (no defaulting to folder names here!): `-web`, `-db` and `-data`.
 
-## New features
+## Installation
 
-### v0.3.9
-
-This release added support for the official PostgreSQL Docker image, to allow the usage of version 9.5 (for it's `jsonb` support). In the future, you will be able to specify which point release of PostgreSQL your project needs.
-
-### v0.3.7
-
-The main new feature in v0.3.7 is the addition of `--build-arg env=dev` to the `dup build` command. This is a temporary measure until I expose build-args to the user via the `.up.json` file. This feature means you **need** to have this line in your base `Dockerfile`:
-
-```Dockerfile
-ARG env
-```
-
-This is the bare minimum. You will likely want to instead do the following:
-
-```Dockerfile
-ARG env=prod
-```
-
-This will default the argument to `prod`, and fix the `One or more build-args [env] were not consumed, failing build.` error that will otherwise be triggered. An example of how to leverage this feature to allow for a singular production `Dockerfile` that has developer tools added on top, assuming two files: `conf/start.prod.sh` which is the standard entry-point, and `conf/start.dev.sh` which is the development entry-point that adds extra tools is as follows:
-
-```Dockerfile
-###
-# This is both a test of Skate as a tool, as well as build-args for Docker
-##
-FROM studionone/node6:latest
-
-# Use a different entrypoint for development vs production
-ARG env=prod
-ADD conf/start.$env.sh /start.sh
-RUN chmod +x /start.sh
-
-ADD code /app
-WORKDIR /app
-RUN npm install
-
-EXPOSE 8080
-
-ENTRYPOINT /start.sh
-```
+- Download the latest binary for your platform from the [releases tab](https://github.com/girvo/dup/releases)
+- Unzip the archive
+- Move the `dup` binary on to your `PATH` (usually `/usr/local/bin`)
 
 ## `.up.json`
 
-In the root of your project, next to the `Dockerfile`, you will need a JSON file `.up.json`, that follows this format:
+In the root of your project, next to the `Dockerfile`, you will need a JSON file `.up.json`, that contains at least this:
 
 ```json
 {
     "project": "project-name-here",
-    "port": "host:container",
     "db": {
-        "type": "mysql-or-postgres",
-        "name": "database-name",
-        "pass": "password-for-admin-or-root-user"
+        "type": "mysql | postgres | mongodb | none",
+        "name": "database name (mysql/postgres)",
+        "pass": "pasword for root user (mysql/postgres)",
+        "user": "admin username (postgres)"
+    }
+}
+```
+
+And can also contain these optional fields:
+
+```json
+{
+    "volume": "local-folder:/container/folder",
+    "port": "host:container",
+    "env": {
+        "ENV_VAR": "value"
+    },
+    "buildArgs": {
+        "example": "build-arg"
     }
 }
 ```
@@ -105,7 +87,7 @@ Your code is mounted as a volume into the `-web` container from the `code/` dire
 
 ## Databases
 
-Currently, `dup` handles MySQL, using the [tutum/mysql:latest](https://github.com/tutumcloud/mysql) Docker image. PostgreSQL is now supported, via the [sameersbn/postgresql:latest](https://github.com/sameersbn/docker-postgresql) Docker image. Persistence of your database is handled by leveraging a "volume-only" container, which ensures that your database persists across destruction of the container. To completely destroy your database, remove the `.up.state` file and `docker rm` the `-data` container.
+Currently, `dup` handles MySQL, using the [tutum/mysql:latest](https://github.com/tutumcloud/mysql) Docker image. PostgreSQL is now supported, via the official `postgres` Docker image. Persistence of your database is handled by leveraging a "volume-only" container, which ensures that your database persists across destruction of the container. To completely destroy your database, remove the `.up.state` file and `docker rm` the `-data` container.
 
 The database user that is setup by default under `tutum/mysql` is `admin`, and the password for that user is declared in `.up.json`.
 

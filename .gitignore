@@ -1,5 +1,15 @@
 # Nim build cache
 nimcache
-
+nimsuggest.log
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+nrpl*
+tnim*
 # Built binaries
 /build
+/test/*
+!/test/**/*.nim
+.DS_Store
